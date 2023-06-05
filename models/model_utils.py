@@ -7,6 +7,7 @@ from .data import load_and_transform_text, load_and_transform_vision_data, load_
 from .imagebind_model import ModalityType, imagebind_huge
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
+# device= "cpu"
 ImageLike = Union["str", np.ndarray, Image.Image]
 
 
@@ -17,8 +18,8 @@ def get_model(dtype: torch.dtype = torch.float16) -> torch.nn.Module:
 
 
 @torch.no_grad()
-def get_texts_embeddings(model: torch.nn.Module, texts: List[str], dtype: torch.dtype = torch.float16) -> torch.Tensor:
-    inputs = {ModalityType.TEXT: load_and_transform_text(texts, device).to(dtype)}
+def get_texts_embeddings(model: torch.nn.Module, texts: List[str]) -> torch.Tensor:
+    inputs = {ModalityType.TEXT: load_and_transform_text(texts, device)}
     texts_embeddings = model(inputs)[ModalityType.TEXT]
     return texts_embeddings
 
@@ -42,11 +43,11 @@ def get_embeddings(
 ) -> Dict[str, torch.Tensor]:  
     inputs = {}
     if texts is not None:
-        inputs[ModalityType.TEXT] = load_and_transform_text(texts, device).to(dtype)
+        # they need to be ints
+        inputs[ModalityType.TEXT] = load_and_transform_text(texts, device)
     if images is not None:
         inputs[ModalityType.VISION] = load_and_transform_vision_data(images, device).to(dtype)
     if audio is not None:
         inputs[ModalityType.AUDIO] = load_and_transform_audio_data(audio, device).to(dtype)
-
     embeddings = model(inputs)
     return embeddings
