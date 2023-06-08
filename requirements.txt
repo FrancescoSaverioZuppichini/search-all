@@ -13,3 +13,4 @@ python-dotenv
 deeplake
 gradio
 libdeeplake
+rich

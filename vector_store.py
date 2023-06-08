@@ -8,21 +8,22 @@ from deeplake.constants import MB
 from pathlib import Path
 from tqdm import tqdm
 import torch
+from typing import List
 from torchvision.io.image import read_image
 from multiprocessing import Pool
 from functools import partial
 
+
 class VectorStore:
     def __init__(self, dataset_path: str, token: str, org_id: str):
         self.dataset_path = dataset_path
-        self._ds = deeplake.load(
-            dataset_path, read_only=True, token=token
-        )
-        
-    def search(self, embedding: np.ndarray):
-        query = f"select * from (select cosine_similarity(embeddings - ARRAY{embedding[0].tolist()}) as score from \"{vs.dataset_path}\") order by score desc limit 5"
-        query_res = self._ds.query(query)
-        return query_res
+        self._ds = deeplake.load(dataset_path, read_only=True, token=token)
+
+    def retrieve(self, embedding: np.ndarray, limit: int = 15) -> List[np.ndarray]:
+        query = f'select * from (select metadata, images, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit {limit}'
+        query_res = self._ds.query(query, runtime={"tensor_db": True})
+        images = query_res.images.data(aslist=True)["value"]
+        return images
 
     @classmethod
     def from_env(cls):
@@ -38,11 +39,9 @@ class VectorStore:
         for embedding_data in embeddings_data:
             metadata = embedding_data["metadata"]
             embedding = embedding_data["embedding"].cpu().float().numpy()
-            image = read_image(metadata["path"]).permute(1,2,0).numpy()
-            metadata['path'] = Path(metadata['path']).name
-            ds.append(
-                {"embeddings": embedding, "metadata": metadata, "images": image}
-            )
+            image = read_image(metadata["path"]).permute(1, 2, 0).numpy()
+            metadata["path"] = Path(metadata["path"]).name
+            ds.append({"embeddings": embedding, "metadata": metadata, "images": image})
 
     @classmethod
     def from_torch_embeddings(
@@ -81,19 +80,26 @@ class VectorStore:
                 create_shape_tensor=True,
             )
 
-            vector_store = VectorStore(dataset_path, token, org_id)
+            # vector_store = VectorStore(dataset_path, token, org_id)
 
             embeddings_data_paths = embeddings_root.glob("*.pth")
-            list(tqdm(map(partial(vector_store.add_torch_embeddings, ds), embeddings_data_paths)))
+            list(
+                tqdm(
+                    map(
+                        partial(VectorStore.add_torch_embeddings, ds),
+                        embeddings_data_paths,
+                    )
+                )
+            )
 
             # with Pool(8) as p:
             #     list(
             #         tqdm(
-            #             p.imap(partial(vector_store.add_torch_embeddings, ds), embeddings_data_paths)
+            #             p.imap(partial(VectorStore.add_torch_embeddings, ds), embeddings_data_paths)
             #         )
             #     )
 
-        return vector_store
+        return VectorStore(dataset_path, token, org_id)
 
 
 if __name__ == "__main__":
@@ -108,5 +114,3 @@ if __name__ == "__main__":
     store = VectorStore.from_torch_embeddings(
         Path("embeddings/"), dataset_path=dataset_path, token=token, org_id=org_id
     )
-
-    # create_ds("embeddings/text3.pth")

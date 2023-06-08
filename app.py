@@ -1,11 +1,14 @@
-import gradio as gr 
-import numpy as np 
-from models.model_utils import get_embeddings, get_model, ModalityType
-from typing import Optional
-from PIL import Image
+from pathlib import Path
 from time import perf_counter
+from typing import Optional
 
+import gradio as gr
+import numpy as np
 from dotenv import load_dotenv
+from PIL import Image
+
+from logger import logger
+from models.model_utils import ModalityType, get_embeddings, get_model
 
 load_dotenv()
 from vector_store import VectorStore
@@ -13,13 +16,18 @@ from vector_store import VectorStore
 vs = VectorStore.from_env()
 model = get_model()
 
-def search_button_handler(text_query: Optional[str], image_query: Optional[Image.Image], audio_query: Optional[str]):
+
+def search_button_handler(
+    text_query: Optional[str],
+    image_query: Optional[Image.Image],
+    audio_query: Optional[str],
+    limit: int = 15,
+):
     if not text_query and not image_query and not audio_query:
-        print("No inputs!")
+        logger.info("No inputs!")
         return
     # we have to pass a list for each query
-    print(f"text_query = {text_query}")
-    if text_query == '' and len(text_query) <= 0:
+    if text_query == "" and len(text_query) <= 0:
         text_query = None
     if text_query is not None:
         text_query = [text_query]
@@ -27,19 +35,18 @@ def search_button_handler(text_query: Optional[str], image_query: Optional[Image
         image_query = [image_query]
     if audio_query is not None:
         audio_query = [audio_query]
-    print(text_query)
     start = perf_counter()
-    embeddings = get_embeddings(model, text_query, image_query, audio_query)
+    embeddings = get_embeddings(model, text_query, image_query, audio_query, limit)
     embeddings[ModalityType.TEXT] *= 0.5
-    embedding = sum(embeddings.values())[0].cpu().numpy() 
-    print(f"Took {(perf_counter() - start) * 1000:.2f}")
-    query = f"select * from (select metadata, images, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from \"{vs.dataset_path}\") order by score desc limit 15"
-    query_res = vs._ds.query(query, runtime = {"tensor_db": True})
-    print(query_res.summary())
-    images = query_res.images.data(aslist = True)['value']
+    embedding = sum(embeddings.values())[0].cpu().numpy()
+    logger.info(f"Took {(perf_counter() - start) * 1000:.2f}")
+    images = vs.search(embedding)
     return images
 
+
 with gr.Blocks() as demo:
+    with Path("docs/APP_README.md").open() as f:
+        gr.Markdown(f.read())
     text_query = gr.Text(label="Text")
     with gr.Row():
         image_query = gr.Image(label="Image", type="pil")
@@ -56,7 +63,9 @@ with gr.Blocks() as demo:
                     interactive=True,
                 )
     gallery = gr.Gallery().style(columns=[3], object_fit="contain", height="auto")
-    search_button.click(search_button_handler, [text_query, image_query, audio_query], [gallery])
+    search_button.click(
+        search_button_handler, [text_query, image_query, audio_query, limit], [gallery]
+    )
 
 demo.queue()
 demo.launch()

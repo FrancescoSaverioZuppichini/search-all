@@ -6,17 +6,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from pathlib import Path
 from itertools import islice
+from pathlib import Path
 
 import torch
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 
 import models.data as data
 from models import imagebind_model
 from models.imagebind_model import ModalityType
-from models.model_utils import get_model, get_images_embeddings
-from tqdm import tqdm
-from torch.utils.data import Dataset, DataLoader
+from models.model_utils import get_images_embeddings, get_model
 
 
 def chunks(iterator, batch_size):
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     from models.model_utils import device
 
     images_root = Path(
-        "/home/zuppif/Documents/Work/ActiveLoop/search-all/data/coco_minitrain_25k/images/val2017"
+        "/home/zuppif/Documents/Work/ActiveLoop/search-all/data/coco_minitrain_25k/images/train2017"
     )
     model = get_model().half()
     encode_images(images_root, model, Path("embeddings/"), device)
