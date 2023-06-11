@@ -46,8 +46,8 @@ def get_embeddings(
         # they need to be ints
         inputs[ModalityType.TEXT] = load_and_transform_text(texts, device)
     if images is not None:
-        inputs[ModalityType.VISION] = load_and_transform_vision_data(images, device).to(dtype)
+        inputs[ModalityType.VISION] = load_and_transform_vision_data(images, device, dtype)
     if audio is not None:
-        inputs[ModalityType.AUDIO] = load_and_transform_audio_data(audio, device).to(dtype)
+        inputs[ModalityType.AUDIO] = load_and_transform_audio_data(audio, device, dtype)
     embeddings = model(inputs)
     return embeddings

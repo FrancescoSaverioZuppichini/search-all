@@ -75,7 +75,7 @@ def get_clip_timepoints(clip_sampler, duration):
     return all_clips_timepoints
 
 
-def load_and_transform_vision_data(image_paths, device):
+def load_and_transform_vision_data(image_paths, device, dtype):
     if image_paths is None:
         return None
 
@@ -102,7 +102,7 @@ def load_and_transform_vision_data(image_paths, device):
             image = torch.from_numpy(image_path)
         elif type(image_path) is Image.Image:
             image = image_path
-        image = data_transform(image).to(device)
+        image = data_transform(image).to(device, dtype=dtype)
         image_ouputs.append(image)
     return torch.stack(image_ouputs, dim=0)
 
@@ -119,6 +119,7 @@ def load_and_transform_text(text, device):
 def load_and_transform_audio_data(
     audio_paths,
     device,
+    dtype,
     num_mel_bins=128,
     target_length=204,
     sample_rate=16000,
@@ -126,6 +127,7 @@ def load_and_transform_audio_data(
     clips_per_video=3,
     mean=-4.268,
     std=9.138,
+    
 ):
     if audio_paths is None:
         return None
@@ -158,7 +160,7 @@ def load_and_transform_audio_data(
             all_clips.append(waveform_melspec)
 
         normalize = transforms.Normalize(mean=mean, std=std)
-        all_clips = [normalize(ac).to(device) for ac in all_clips]
+        all_clips = [normalize(ac).to(device, dtype=dtype) for ac in all_clips]
 
         all_clips = torch.stack(all_clips, dim=0)
         audio_outputs.append(all_clips)

@@ -33,7 +33,7 @@ def encode_images(
     batch_size: int = 64,
 ):
     # not the best way but the faster, best way would be to use a torch Dataset + Dataloader
-    images = images_root.glob("*.jpg")
+    images = images_root.glob("*.jpeg")
     embeddings_out_dir.mkdir(exist_ok=True)
     for batch_idx, chunk in tqdm(enumerate(chunks(images, batch_size))):
         images_paths_str = [str(el) for el in chunk]
@@ -50,8 +50,6 @@ def encode_images(
 if __name__ == "__main__":
     from models.model_utils import device
 
-    images_root = Path(
-        "/home/zuppif/Documents/Work/ActiveLoop/search-all/data/coco_minitrain_25k/images/train2017"
-    )
+    images_root = Path("data/lexica")
     model = get_model().half()
     encode_images(images_root, model, Path("embeddings/"), device)

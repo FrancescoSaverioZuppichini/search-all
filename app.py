@@ -1,7 +1,7 @@
 from pathlib import Path
 from time import perf_counter
 from typing import Optional
-
+import torch
 import gradio as gr
 import numpy as np
 from dotenv import load_dotenv
@@ -15,6 +15,8 @@ from vector_store import VectorStore
 
 vs = VectorStore.from_env()
 model = get_model()
+
+BUCKET_LINK = "https://activeloop-sandbox-fdd0.s3.amazonaws.com/"
 
 
 def search_button_handler(
@@ -36,12 +38,15 @@ def search_button_handler(
     if audio_query is not None:
         audio_query = [audio_query]
     start = perf_counter()
-    embeddings = get_embeddings(model, text_query, image_query, audio_query, limit)
-    embeddings[ModalityType.TEXT] *= 0.5
-    embedding = sum(embeddings.values())[0].cpu().numpy()
-    logger.info(f"Took {(perf_counter() - start) * 1000:.2f}")
-    images = vs.search(embedding)
-    return images
+    logger.info(f"Searching ...")
+    embeddings = get_embeddings(model, text_query, image_query, audio_query).values()
+    embeddings = torch.stack(list(embeddings), dim=0).squeeze()
+    weights = torch.ones((embeddings.shape[0], 1), device=embeddings.device) / embeddings.shape[0]
+    embedding = (embeddings / weights).sum(0).cpu().float()
+    print(embedding.shape, embedding.dtype)
+    logger.info(f"Model took {(perf_counter() - start) * 1000:.2f}")
+    images_paths = vs.retrieve(embedding, limit)
+    return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
 
 
 with gr.Blocks() as demo:
@@ -56,8 +61,8 @@ with gr.Blocks() as demo:
             with gr.Accordion("Settings", open=False):
                 limit = gr.Slider(
                     minimum=1,
-                    maximum=20,
-                    value=5,
+                    maximum=30,
+                    value=15,
                     step=1,
                     label="search limit",
                     interactive=True,

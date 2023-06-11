@@ -1,17 +1,15 @@
 import json
 import os
+from functools import partial
+from pathlib import Path
+from typing import List, Tuple
 
 import deeplake
 import numpy as np
 import torch
 from deeplake.constants import MB
-from pathlib import Path
-from tqdm import tqdm
-import torch
-from typing import List
 from torchvision.io.image import read_image
-from multiprocessing import Pool
-from functools import partial
+from tqdm import tqdm
 
 
 class VectorStore:
@@ -19,11 +17,14 @@ class VectorStore:
         self.dataset_path = dataset_path
         self._ds = deeplake.load(dataset_path, read_only=True, token=token)
 
-    def retrieve(self, embedding: np.ndarray, limit: int = 15) -> List[np.ndarray]:
-        query = f'select * from (select metadata, images, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit {limit}'
+    def retrieve(self, embedding: torch.Tensor, limit: int = 15) -> List[str]:
+        query = f'select * from (select metadata, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit {limit}'
         query_res = self._ds.query(query, runtime={"tensor_db": True})
-        images = query_res.images.data(aslist=True)["value"]
-        return images
+        images = [
+            el["path"].split(".")[0]
+            for el in query_res.metadata.data(aslist=True)["value"]
+        ]
+        return images, query_res
 
     @classmethod
     def from_env(cls):
@@ -57,7 +58,7 @@ class VectorStore:
             runtime={"db_engine": True},
             token=token,
             overwrite=overwrite,
-            org_id=org_id,
+            # org_id=org_id,
         )
 
         with ds:
@@ -80,8 +81,6 @@ class VectorStore:
                 create_shape_tensor=True,
             )
 
-            # vector_store = VectorStore(dataset_path, token, org_id)
-
             embeddings_data_paths = embeddings_root.glob("*.pth")
             list(
                 tqdm(
@@ -91,13 +90,6 @@ class VectorStore:
                     )
                 )
             )
-
-            # with Pool(8) as p:
-            #     list(
-            #         tqdm(
-            #             p.imap(partial(VectorStore.add_torch_embeddings, ds), embeddings_data_paths)
-            #         )
-            #     )
 
         return VectorStore(dataset_path, token, org_id)
 
