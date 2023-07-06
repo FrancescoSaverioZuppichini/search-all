@@ -40,12 +40,15 @@ def search_button_handler(
     start = perf_counter()
     logger.info(f"Searching ...")
     embeddings = get_embeddings(model, text_query, image_query, audio_query).values()
-    embeddings = torch.stack(list(embeddings), dim=0).squeeze()
-    weights = torch.ones((embeddings.shape[0], 1), device=embeddings.device) / embeddings.shape[0]
-    embedding = (embeddings / weights).sum(0).cpu().float()
-    print(embedding.shape, embedding.dtype)
+    # if multiple inputs, we sum them
+    embedding = torch.stack(list(embeddings), dim=0).sum(0).squeeze()
+    # weights = (
+    #     torch.ones((embeddings.shape[0], 1), device=embeddings.device)
+    #     / embeddings.shape[0]
+    # )
+    # embedding = (embeddings / weights).sum(0).cpu().float()
     logger.info(f"Model took {(perf_counter() - start) * 1000:.2f}")
-    images_paths = vs.retrieve(embedding, limit)
+    images_paths, query_res = vs.retrieve(embedding.cpu().float(), limit)
     return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
 
 

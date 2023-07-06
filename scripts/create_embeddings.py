@@ -10,12 +10,8 @@ from itertools import islice
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
-import models.data as data
-from models import imagebind_model
-from models.imagebind_model import ModalityType
 from models.model_utils import get_images_embeddings, get_model
 
 
@@ -29,7 +25,6 @@ def encode_images(
     images_root: Path,
     model: torch.nn.Module,
     embeddings_out_dir: Path,
-    device: torch.device,
     batch_size: int = 64,
 ):
     # not the best way but the faster, best way would be to use a torch Dataset + Dataloader
