@@ -269,8 +269,6 @@ vs = VectorStore(...)
 vs.retrieve(get_embeddings(images="car.jpeg"))
 ```
 
-where `car.jpeg` is <image height="200px"  src="images/car.jpeg" />
-
 <table><tr><td>query</td><td>results</td></tr>
 <tr><td><image height="200px"  src="images/car.jpeg" /></td><td><image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/db0c1644-6407-4128-85a2-133cae307f80"/>
 </td><td>
@@ -365,4 +363,22 @@ So for each input we check that they exists, if they do we wrap them into a `lis
 
 We have stored all the images into s3, so we return a list of links to the images there, this is the input to `gr.Gallery`
 
-Where, that's it! Let's see in action.
+Where, that's it! Let's see in action. 
+
+Normal single modality works as expected. 
+
+If we receive more than one input, we sum them up. Basically,
+
+```python
+embedding = torch.stack(list(embeddings), dim=0).sum(0).squeeze()
+```
+
+For example, we can pass an image of a car and an audio of a f1 race.
+
+![alt](images/car_audio.png)
+
+or the text + image, we can also do text + image + audio, feel free to test it out!
+
+![alt](images/text_image.png)
+
+Well that was it! 
