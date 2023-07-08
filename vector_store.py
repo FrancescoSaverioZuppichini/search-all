@@ -18,9 +18,8 @@ class VectorStore:
         self._ds = deeplake.load(dataset_path, read_only=True, token=token)
 
     def retrieve(self, embedding: torch.Tensor, limit: int = 15) -> List[str]:
-        query = f'select * from (select metadata, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit 2'
-        print(query)
-        query_res = self._ds.query(query, runtime={"tensor_db": True})
+        query = f'select * from (select metadata, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit {limit}'
+        query_res = self._ds.query(query, runtime={"tensor_db": True}, return_data=True)
         images = [
             el["path"].split(".")[0]
             for el in query_res.metadata.data(aslist=True)["value"]

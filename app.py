@@ -3,7 +3,6 @@ from time import perf_counter
 from typing import Optional
 import torch
 import gradio as gr
-import numpy as np
 from dotenv import load_dotenv
 from PIL import Image
 
@@ -22,10 +21,12 @@ BUCKET_LINK = "https://activeloop-sandbox-fdd0.s3.amazonaws.com/"
 def search_button_handler(
     text_query: Optional[str],
     image_query: Optional[Image.Image],
-    audio_query: Optional[str],
+    audio_mic_query: Optional[str],
+    audio_file_query: Optional[str],
     limit: int = 15,
-):
-    if not text_query and not image_query and not audio_query:
+):  
+    print(audio_file_query)
+    if not text_query and not image_query and not audio_mic_query and not audio_file_query:
         logger.info("No inputs!")
         return
     # we have to pass a list for each query
@@ -35,44 +36,53 @@ def search_button_handler(
         text_query = [text_query]
     if image_query is not None:
         image_query = [image_query]
-    if audio_query is not None:
-        audio_query = [audio_query]
+    if audio_mic_query is not None:
+        audio_query = [audio_mic_query]
+    if audio_file_query is not None:
+        audio_query = [audio_file_query]
     start = perf_counter()
     logger.info(f"Searching ...")
     embeddings = get_embeddings(model, text_query, image_query, audio_query).values()
     # if multiple inputs, we sum them
     embedding = torch.stack(list(embeddings), dim=0).sum(0).squeeze()
-    # weights = (
-    #     torch.ones((embeddings.shape[0], 1), device=embeddings.device)
-    #     / embeddings.shape[0]
-    # )
-    # embedding = (embeddings / weights).sum(0).cpu().float()
-    logger.info(f"Model took {(perf_counter() - start) * 1000:.2f}")
+    logger.info(f"Model took {(perf_counter() - start) * 1000:.2f} for embedding = {embedding.shape}")
     images_paths, query_res = vs.retrieve(embedding.cpu().float(), limit)
     return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
 
 
-with gr.Blocks() as demo:
+def clear_button_handler():
+    return [None] * 6
+css = """
+#image_query { height: auto !important; }
+#audio_file_query { height: 100px; }
+"""
+with gr.Blocks(css=css) as demo:
+    # pairs of (input_type, data, +/-)
+    inputs = gr.State([])
     with Path("docs/APP_README.md").open() as f:
         gr.Markdown(f.read())
     text_query = gr.Text(label="Text")
     with gr.Row():
-        image_query = gr.Image(label="Image", type="pil")
+        image_query = gr.Image(label="Image", type="pil", elem_id="image_query")
         with gr.Column():
-            audio_query = gr.Audio(label="Audio", source="microphone", type="filepath")
-            search_button = gr.Button("Search", label="Search", variant="primary")
-            with gr.Accordion("Settings", open=False):
-                limit = gr.Slider(
-                    minimum=1,
-                    maximum=30,
-                    value=15,
-                    step=1,
-                    label="search limit",
-                    interactive=True,
-                )
+            audio_mic_query = gr.Audio(label="Audio", source="microphone", type="filepath")
+            audio_file_query = gr.Audio(label="Audio", type="filepath", elem_id="audio_file_query")
+    markdown = gr.Markdown("")
+    search_button = gr.Button("Search", label="Search", variant="primary")
+    clear_button = gr.Button("Clear", label="Clear", variant="secondary")
+    with gr.Accordion("Settings", open=False):
+        limit = gr.Slider(
+            minimum=1,
+            maximum=30,
+            value=15,
+            step=1,
+            label="search limit",
+            interactive=True,
+        )
     gallery = gr.Gallery().style(columns=[3], object_fit="contain", height="auto")
+    clear_button.click(clear_button_handler, [], [text_query, image_query, audio_mic_query, audio_file_query, markdown, gallery])
     search_button.click(
-        search_button_handler, [text_query, image_query, audio_query, limit], [gallery]
+        search_button_handler, [text_query, image_query, audio_mic_query, audio_file_query, limit], [gallery]
     )
 
 demo.queue()
