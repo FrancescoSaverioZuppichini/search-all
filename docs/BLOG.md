@@ -10,7 +10,7 @@ A public demo is available here and code is on GitHub, feel free to test it out 
 
 ## Plan of Attack
 
-We need four things: data, a way to generate embeddings, a vector database to store them and a interactive app. Let's start with the data
+We need three things: data, a way to generate embeddings, a vector database to store them and a interactive app. Let's start with the data
 
 ## Getting Data
 
