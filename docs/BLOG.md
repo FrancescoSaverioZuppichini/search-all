@@ -90,7 +90,7 @@ print(embeddings[ModalityType.AUDIO])
 print(embeddings[ModalityType.TEXT])
 ```
 
-We first store all the images embeddings as `pth` files on disk using a simple function to batch the images
+We first store all the images embeddings as `pth` files on disk using a simple function to batch the images. Note that we store a dictionary so we can have some metadata; we are interested in the `image_path`, we will use it later.
 
 ```python
 @torch.no_grad()
@@ -192,18 +192,39 @@ Here we are just iterating all the embedings file and adding all the stuff withi
 
 Cool!
 
-To run a query we can
+To run a query  with deeplake we can
 
 ```python
 embedding = # getting the embeddings from ImageBind
 dataset_path = # our path to active loop dataset
+limit = # number of results we want
 query = f'select * from (select metadata, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{dataset_path}") order by score desc limit {limit}'
 query_res = ds.query(query, runtime={"tensor_db": True})
+# query_res = Dataset(path='hub://zuppif/lexica-6k', read_only=True, index=Index([(1331, 1551)]), tensors=['embeddings', 'images', 'metadata'])
 ```
 
-The result is TODO add it
+We can access the metadata by
 
-Awesome! We can also create an utility function to embed text, images and audio to make our life easier
+```python
+query_res.metadata.data(aslist=True)["value"]
+# [{'path': '5e3a7c9b-e890-4975-9342-4b6898fed2c6.jpeg'}, {'path': '7a961855-25af-4359-b869-5ae1cc8a4b95.jpeg'}]
+```
+If you recall, this are the metadata we stored previously, so the image filename. We wrapped all the vector store related code into a `VectorStore` class inside [vector_store.py](vector_store.py).
+
+```python
+class VectorStore():
+    ...
+        def retrieve(self, embedding: torch.Tensor, limit: int = 15) -> List[str]:
+        query = f'select * from (select metadata, cosine_similarity(embeddings, ARRAY{embedding.tolist()}) as score from "{self.dataset_path}") order by score desc limit {limit}'
+        query_res = self._ds.query(query, runtime={"tensor_db": True})
+        images = [
+            el["path"].split(".")[0]
+            for el in query_res.metadata.data(aslist=True)["value"]
+        ]
+        return images, query_res
+```
+
+Awesome, now we need to search! So, since the model supports text, images and audios we can also create an utility function to make our life easier
 
 
 ```python
@@ -227,7 +248,36 @@ def get_embeddings(
     return embeddings
 ```
 
-Always remember the `torch.no_grad` decorator :)
+Always remember the `torch.no_grad` decorator :) Now we can
+
+
+```python
+vs = VectorStore(...)
+vs.retrieve(get_embeddings(texts="A Dog"))
+```
+
+<table><tr><td>query</td><td>results</td></tr>
+<tr><td>"A Dog"</td><td><image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/8ed51ad3-f40a-46e6-ab07-5aceec549822"/>
+</td><td>
+<image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/22146cb5-3085-4939-8229-2a2f20d8d980"/>
+</td><td>
+<image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/4ef13128-ee3f-4802-b6be-51b2351e1288"/>
+</td></tr></table>
+
+```python
+vs = VectorStore(...)
+vs.retrieve(get_embeddings(images="car.jpeg"))
+```
+
+where `car.jpeg` is <image height="200px"  src="images/car.jpeg" />
+
+<table><tr><td>query</td><td>results</td></tr>
+<tr><td><image height="200px"  src="images/car.jpeg" /></td><td><image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/db0c1644-6407-4128-85a2-133cae307f80"/>
+</td><td>
+<image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/ae2e7cba-ed40-4720-a78a-f8c4b3c7393a"/>
+</td><td>
+<image height="200px" src="https://activeloop-sandbox-fdd0.s3.amazonaws.com/259d09dd-e6b7-47e6-af5a-c206ea5d7b77"/>
+</td></tr></table>
 
 ## Creating the app
 
