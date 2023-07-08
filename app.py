@@ -14,6 +14,7 @@ from vector_store import VectorStore
 
 vs = VectorStore.from_env()
 model = get_model()
+logger.info("Model Loaded!")
 
 BUCKET_LINK = "https://activeloop-sandbox-fdd0.s3.amazonaws.com/"
 
@@ -30,6 +31,7 @@ def search_button_handler(
         logger.info("No inputs!")
         return
     # we have to pass a list for each query
+    audio_query = None
     if text_query == "" and len(text_query) <= 0:
         text_query = None
     if text_query is not None:
@@ -44,7 +46,7 @@ def search_button_handler(
     logger.info(f"Searching ...")
     embeddings = get_embeddings(model, text_query, image_query, audio_query).values()
     # if multiple inputs, we sum them
-    embedding = torch.stack(list(embeddings), dim=0).sum(0).squeeze()
+    embedding = torch.vstack(list(embeddings)).sum(0)
     logger.info(f"Model took {(perf_counter() - start) * 1000:.2f} for embedding = {embedding.shape}")
     images_paths, query_res = vs.retrieve(embedding.cpu().float(), limit)
     return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
@@ -63,7 +65,7 @@ with gr.Blocks(css=css) as demo:
         gr.Markdown(f.read())
     text_query = gr.Text(label="Text")
     with gr.Row():
-        image_query = gr.Image(label="Image", type="pil", elem_id="image_query")
+        image_query = gr.Image(label="Image", type="pil", elem_id="image_query").style(height=400)
         with gr.Column():
             audio_mic_query = gr.Audio(label="Audio", source="microphone", type="filepath")
             audio_file_query = gr.Audio(label="Audio", type="filepath", elem_id="audio_file_query")

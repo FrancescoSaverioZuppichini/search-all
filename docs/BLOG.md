@@ -370,7 +370,7 @@ Normal single modality works as expected.
 If we receive more than one input, we sum them up. Basically,
 
 ```python
-embedding = torch.stack(list(embeddings), dim=0).sum(0).squeeze()
+embedding = torch.vstack(list(embeddings)).sum(0)
 ```
 
 For example, we can pass an image of a car and an audio of a f1 race.
@@ -379,6 +379,18 @@ For example, we can pass an image of a car and an audio of a f1 race.
 
 or the text + image, we can also do text + image + audio, feel free to test it out!
 
-![alt](images/text_image.png)
+![alt](images/text_image.png) 
+
+Some of the results were not too great, "cartoon" + cat image
+
+![alt](images/cat_text_image.png)
+
+
+
+**In my experiments I've noticed that the text is stronger compared to image and audio when combinated with the other modalities** 
+
+We encourage the reader to try to demo and share the results :)
 
 Well that was it! 
+
+Thanks a lot for reading, I hope you learnt something new. Let us know how well the demo works for you
