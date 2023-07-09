@@ -1,33 +1,37 @@
-# Search All: Cross Modal Retrieval 📜🎵📷
+# Search All: Cross Multi Modal Retrieval with ImageBind and DeepLake 📜🎵📷
 
-In this tutorial we will see how to create search a AI generated images using **text**, **audio** or **images**.
+Hi There 👋 Hope everything is great! In this tutorial we will see how to create a search engine to retrieve AI generated images using **text**, **audio** or **images**.
 
 TODO INSERT VIDEO
 
 We will use [gradio](ttps://gradio.app/) to create the app, the new powerful multi modal model created by Meta: [ImageBind](https://imagebind.metademolab.com/) and [deeplake](https://www.deeplake.ai/) to store the embeddings.
 
-A public demo is available here and code is on GitHub, feel free to test it out :)
+A public demo is available here and code is on GitHub, feel free to test it out :) 
+
+[TODO insert link to demo]()
+
+Let's get started
 
 ## Plan of Attack
 
-We need three things: data, a way to generate embeddings, a vector database to store them and a interactive app. Let's start with the data
+We need four things: data, a way to generate embeddings, a vector database to store them and a interactive app. Let's start with the data
 
 ## Getting Data
 
-I was thinking about interesting data to search on, so I come accross this [dataset hosted on hugging face](https://huggingface.co/datasets/xfh/lexica_6k) that contains images from [lexica](https://lexica.art/) a website where you can search for ai generate (mostly stable diffusion) images. To my knowledge, the search works by exact match in the prompt, while we will create a semantic search.
+I was thinking about interesting data to search on, so I come across this [dataset hosted on hugging face](https://huggingface.co/datasets/xfh/lexica_6k) that contains images from [lexica](https://lexica.art/) a website where you can search for AI generate (mostly stable diffusion) images. To my knowledge, the search works by exact match in the prompt, while we will create a semantic search.
 
 ![alt](images/lexica.png)
 
-To get the actual images from [hugging face datasets](https://huggingface.co/docs/datasets/index) we need to do a little processing. First we need to load the dataset
+Since we want to display the images on the web app, we need to get them and store them somewhere (in our case in a s3 bucket). So, first we load the [hugging face dataset](https://huggingface.co/docs/datasets/index)
 
 ```python
-
+# pip install datasets
 from datasets import load_dataset
 
 dataset = load_dataset("xfh/lexica_6k", split="train")
 ```
 
-Then we need to store each image to disk
+Then we store each image to disk
 
 ```python
 for row in dataset:
@@ -40,23 +44,23 @@ This is a simplified version, for speed we used a thread pool on dataset batches
 
 ## Create Embeddings
 
-To be able to search, we need to encode the images in embeddings. Since we would like to use using multiple modalities, aka text, images or audio. We decided to use the new Meta model called [ImageBind](https://imagebind.metademolab.com/).
+To search the images given a query, we need to encode the images in embeddings and then encode the query and perform cosine similarity to find the "closets", aka "most similar" images. We would like to search using multiple modalities, text, images or audio, for this reason, we decided to use the new Meta model called [ImageBind](https://imagebind.metademolab.com/).
 
-In a nutsheel, ImageBind is a transformer based model trained on multiple pairs of modalities, e.g. text-image, and learn how to map all of them in the same vector space. This means that a text query `"dog"` will be mapped close to a dog image, allowing us to seamlessly search in that space.The main advantage is that we don't need one model per modality, like in CLIP where you have one for text and one for image, but we can use the **same weights** for all of them. The following image taken from the paper shows the idea
+In a nutshell, ImageBind is a transformer-based model trained on multiple pairs of modalities, e.g. text-image, and learns how to map all of them in the same vector space. This means that a text query `"dog"` will be mapped close to a dog image, allowing us to seamlessly search in that space. The main advantage is that we don't need one model per modality, like in CLIP where you have one for text and one for image, but we can use the **same weights** for all of them. The following image taken from the paper shows the idea
 
 ![alt](images/imagebind.png)
 
 The model supports images, text, audio, depth, thermal, and IMU data. We will limit ourself to the first three.
 
-Moreover, we can do **Embedding space arithmetic**, where we add multiple modalities embeddings to capture different semantic information. 
+Moreover, we can do **Embedding space arithmetic**, where we add (or subtract) multiple modalities embeddings to capture different semantic information. We'll play with it later on
 
 ![alt](images/imagebind_arithmentic.png)
 
 For the most curious reader, you can learn more by reading the [paper](https://arxiv.org/abs/2305.05665)
 
-Okay, let's get the embeddings. We need to load the model and store the embeddings for all the images. 
+Okay, let's get the embeddings. We need to load the model and store the embeddings for all the images so we can later on read them and dump them in the vector db. 
 
-Getting the embeddings is quite easy with the [ImageBind code](https://github.com/facebookresearch/ImageBind)
+Getting the embeddings is quite easy with the [ImageBind code](https://github.com/facebookresearch/ImageBind) code.
 
 ```python
 import data
@@ -90,7 +94,7 @@ print(embeddings[ModalityType.AUDIO])
 print(embeddings[ModalityType.TEXT])
 ```
 
-We first store all the images embeddings as `pth` files on disk using a simple function to batch the images. Note that we store a dictionary so we can have some metadata; we are interested in the `image_path`, we will use it later.
+We first store all the images embeddings as `pth` files on disk using a simple function to batch the images. Note that we store a dictionary so we can add metadata; we are interested in the `image_path`, we will use it later.
 
 ```python
 @torch.no_grad()
@@ -115,13 +119,13 @@ def encode_images(
         )
 ```
 
-Note that a better solution would have been using [torch Dataset + Dataloader](https://pytorch.org/tutorials/recipes/recipes/loading_data_recipe.html).
+Note that a better solution would have been using [torch Dataset + Dataloader](https://pytorch.org/tutorials/recipes/recipes/loading_data_recipe.html). We were lazy here.
 
 ## Storing data into the Vector Database
 
 After we have obtained our embeddings, is time to load them into deep lake vector db. You can learn more about deep lake on the [official code documentation](https://docs.deeplake.ai/en/latest/).
 
-To start, we need to define a vector db
+To start, we need to define the vector db
 
 ```python
 import deeplake
@@ -134,9 +138,9 @@ ds = deeplake.empty(
         )
 ```
 
-We are setting `db_engine=True`, meaning we won't store the data on our disk but we will use deep lake cloud to both store the data and run our quries.
+We are setting `db_engine=True`, meaning we won't store the data on our disk but we will use deep lake cloud to both store the data and run our queries.
 
-Then we need to define the shape of the data
+Next, we need to define the shape of the data
 
 ```python
 with ds:
@@ -160,9 +164,9 @@ with ds:
     )
 ```
 
-Here we create three tensors, one to hold the `metadata` of each embedding, one to store the images (in our case this is optional) and one to store the actual tensors of our embeddings
+Here we create three tensors, one to hold the `metadata` of each embedding, one to store the `images` (in our case this is optional but it's cool to showcase) and one to store the actual tensors of our `embeddings`
 
-Then it's time to add our data, if you recall we store batched embeddings to disk as `.pth` files.
+Then it's time to add our data, if you recall we stored batched embeddings to disk as `.pth` files.
 
 ```python
 
@@ -186,13 +190,13 @@ list(
 )
 ```
 
-Here we are just iterating all the embedings file and adding all the stuff within each one of them. We can have a look at the data from activeloop dashboard
+Here we are just iterating all the embedings file and adding all the stuff within each one of them. We can have a look at the data from [activeloop dashboard](https:/app.activeloop.ai/zuppif/lexica-6k) - spoiler alert, it is quite cool 
 
 ![alt](images/activeloop_dashboard.png)
 
 Cool!
 
-To run a query  with deeplake we can
+To run a query on deeplake we can
 
 ```python
 embedding = # getting the embeddings from ImageBind
@@ -209,7 +213,7 @@ We can access the metadata by
 query_res.metadata.data(aslist=True)["value"]
 # [{'path': '5e3a7c9b-e890-4975-9342-4b6898fed2c6.jpeg'}, {'path': '7a961855-25af-4359-b869-5ae1cc8a4b95.jpeg'}]
 ```
-If you recall, this are the metadata we stored previously, so the image filename. We wrapped all the vector store related code into a `VectorStore` class inside [vector_store.py](vector_store.py).
+If you remember, these are the metadata we stored previously, so the image filename. We wrapped all the vector store related code into a `VectorStore` class inside [vector_store.py](vector_store.py).
 
 ```python
 class VectorStore():
@@ -224,8 +228,7 @@ class VectorStore():
         return images, query_res
 ```
 
-Awesome, now we need to search! So, since the model supports text, images and audios we can also create an utility function to make our life easier
-
+So, since the model supports text, images and audios we can also create an utility function to make our life easier
 
 ```python
 @torch.no_grad()
@@ -248,12 +251,12 @@ def get_embeddings(
     return embeddings
 ```
 
-Always remember the `torch.no_grad` decorator :) Now we can
+Always remember the `torch.no_grad` decorator :) Next, we can easility do
 
 
 ```python
 vs = VectorStore(...)
-vs.retrieve(get_embeddings(texts="A Dog"))
+vs.retrieve(get_embeddings(texts=["A Dog"]))
 ```
 
 <table><tr><td>query</td><td>results</td></tr>
@@ -266,7 +269,7 @@ vs.retrieve(get_embeddings(texts="A Dog"))
 
 ```python
 vs = VectorStore(...)
-vs.retrieve(get_embeddings(images="car.jpeg"))
+vs.retrieve(get_embeddings(images=["car.jpeg"]))
 ```
 
 <table><tr><td>query</td><td>results</td></tr>
@@ -279,7 +282,7 @@ vs.retrieve(get_embeddings(images="car.jpeg"))
 
 ## Creating the app
 
-We used gradio to create the nice ui for the app. It is actually quite simple, we need to first define the inputs and outputs of the app
+We used gradio to create a nice ui for the app. It is actually quite simple, we need to first define the inputs and outputs of the app
 
 ```python
 with gr.Blocks() as demo:
