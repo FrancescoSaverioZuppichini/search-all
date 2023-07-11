@@ -1,7 +1,12 @@
 # Search All: Cross Modal Retrieval 📜🎵📷
 You can search a collection of images using `text`, `images` or `audio`.
 
+> **Warning**
+> The model is really bad with multi modalities, text is way heavier than the others, I've tried a couple of things but they didn't work - assuming I was not dumb, I wouldn't reccomand using this model for anything real 
+
 For this app, we have embedded stable diffusion generated images from [`lexica`](ttps://lexica.art/n) eval set, you can now search them using **text, images or audio**. The embeddings are generated using Meta [ImageBind](https://imagebind.metademolab.com/) a new powerful model capable of handling a lots of modalities.
+
+![alt](docs/images/main.gif)
 
 ## Installation
 
