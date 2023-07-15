@@ -46,11 +46,19 @@ This is a simplified version, for speed we used a thread pool on dataset batches
 
 To search the images given a query, we need to encode the images in embeddings and then encode the query and perform cosine similarity to find the "closets", aka "most similar" images. We would like to search using multiple modalities, text, images or audio, for this reason, we decided to use the new Meta model called [ImageBind](https://imagebind.metademolab.com/).
 
+### ImageBind
+
 In a nutshell, ImageBind is a transformer-based model trained on multiple pairs of modalities, e.g. text-image, and learns how to map all of them in the same vector space. This means that a text query `"dog"` will be mapped close to a dog image, allowing us to seamlessly search in that space. The main advantage is that we don't need one model per modality, like in CLIP where you have one for text and one for image, but we can use the **same weights** for all of them. The following image taken from the paper shows the idea
 
 ![alt](images/imagebind.png)
 
-The model supports images, text, audio, depth, thermal, and IMU data. We will limit ourself to the first three.
+The model supports images, text, audio, depth, thermal, and IMU data. We will limit ourselves to the first three. The task of learning similar embeddings for similar concepts in different modalities, e.g. "dog" and an image of a dog, is called *alignment*. The ImageBind Authors used a [Vision Transformer (ViT) ](https://arxiv.org/abs/2010.11929), a common architecture these days. Due to the number of different modalities, the preprocessing step is different. For example, for videos we need to take into account the time dimension, the audio needs to be converted to spectrogram, but the main weights are the same.
+
+![alt](images/imagebind_overview.png)
+
+To learn to *align* pairs of modalities, (text, image), (audio, text), the Authors used *contrastive learning* and specifically the [*InfoNCE* loss](https://arxiv.org/abs/1807.03748). Using *InfoNCE*, the model is trained to identify a positive example from a batch of negative ones by maximizing the similarity between positive pairs and minimizing the similarity between negative ones.
+
+The most interesting thing is that even if the model was trained on pairs (text, image) and (audio, text) the model learns also (image, audio). This is what the Authors called *"Emergent alignment of unseen pairs of modalities"*/
 
 Moreover, we can do **Embedding space arithmetic**, where we add (or subtract) multiple modalities embeddings to capture different semantic information. We'll play with it later on
 
