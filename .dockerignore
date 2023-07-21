@@ -1,0 +1,6 @@
+videos/
+embeddings/
+docs/images
+docs/BLOG.md
+bpe/
+.checkpoints/

@@ -25,9 +25,14 @@ def search_button_handler(
     audio_mic_query: Optional[str],
     audio_file_query: Optional[str],
     limit: int = 15,
-):  
+):
     print(audio_file_query)
-    if not text_query and not image_query and not audio_mic_query and not audio_file_query:
+    if (
+        not text_query
+        and not image_query
+        and not audio_mic_query
+        and not audio_file_query
+    ):
         logger.info("No inputs!")
         return
     # we have to pass a list for each query
@@ -47,13 +52,17 @@ def search_button_handler(
     embeddings = get_embeddings(model, text_query, image_query, audio_query).values()
     # if multiple inputs, we sum them
     embedding = torch.vstack(list(embeddings)).sum(0)
-    logger.info(f"Model took {(perf_counter() - start) * 1000:.2f} for embedding = {embedding.shape}")
+    logger.info(
+        f"Model took {(perf_counter() - start) * 1000:.2f} for embedding = {embedding.shape}"
+    )
     images_paths, query_res = vs.retrieve(embedding.cpu().float(), limit)
     return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
 
 
 def clear_button_handler():
     return [None] * 6
+
+
 css = """
 #image_query { height: auto !important; }
 #audio_file_query { height: 100px; }
@@ -65,10 +74,16 @@ with gr.Blocks(css=css) as demo:
         gr.Markdown(f.read())
     text_query = gr.Text(label="Text")
     with gr.Row():
-        image_query = gr.Image(label="Image", type="pil", elem_id="image_query").style(height=400)
+        image_query = gr.Image(label="Image", type="pil", elem_id="image_query").style(
+            height=400
+        )
         with gr.Column():
-            audio_mic_query = gr.Audio(label="Audio", source="microphone", type="filepath")
-            audio_file_query = gr.Audio(label="Audio", type="filepath", elem_id="audio_file_query")
+            audio_mic_query = gr.Audio(
+                label="Audio", source="microphone", type="filepath"
+            )
+            audio_file_query = gr.Audio(
+                label="Audio", type="filepath", elem_id="audio_file_query"
+            )
     markdown = gr.Markdown("")
     search_button = gr.Button("Search", label="Search", variant="primary")
     clear_button = gr.Button("Clear", label="Clear", variant="secondary")
@@ -82,10 +97,16 @@ with gr.Blocks(css=css) as demo:
             interactive=True,
         )
     gallery = gr.Gallery().style(columns=[3], object_fit="contain", height="auto")
-    clear_button.click(clear_button_handler, [], [text_query, image_query, audio_mic_query, audio_file_query, markdown, gallery])
+    clear_button.click(
+        clear_button_handler,
+        [],
+        [text_query, image_query, audio_mic_query, audio_file_query, markdown, gallery],
+    )
     search_button.click(
-        search_button_handler, [text_query, image_query, audio_mic_query, audio_file_query, limit], [gallery]
+        search_button_handler,
+        [text_query, image_query, audio_mic_query, audio_file_query, limit],
+        [gallery],
     )
 
 demo.queue()
-demo.launch()
+demo.launch(server_name="0.0.0.0", share=False, server_port=7860)

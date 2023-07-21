@@ -10,6 +10,8 @@ For this app, we have embedded stable diffusion generated images from [`lexica`]
 
 ## Installation
 
+### Python
+
 You have the same installation requirements as the original [imagebind](https://github.com/facebookresearch/ImageBind) plus a couple of more packages. You can install them all by
 
 ```python
@@ -26,6 +28,25 @@ gradio app.py
 ```
 
 It should download the correct model, it might take a while.
+
+
+### Docker
+
+Be sure the have both [docker](https://docs.docker.com/engine/install/) and [nvidia-docker](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed. Build the container
+
+```bash
+docker build -t search-all .
+```
+
+Run it 
+
+```bash
+docker run --gpus all --rm -it --ipc=host  --ulimit memlock=-1 --ulimit stack=67108864 -v $PWD/.checkpoints:/workspace/.checkpoints -p 7860:7860 search-all
+```
+
+It should download the correct model, it might take a while.
+
+Then, `http://localhost:7860`
 
 ## Seed the database
 
