@@ -1,5 +1,7 @@
-# Search All: Cross Modal Retrieval 📜🎵📷
+# Search All: Multi Modal Retrieval 📜🎵📷
 You can search a collection of images using `text`, `images` or `audio`.
+
+YouTube Video: https://www.youtube.com/watch?v=gGeUbwiljSE
 
 > **Warning**
 > The model is really bad with multi modalities, text is way heavier than the others, I've tried a couple of things but they didn't work - assuming I was not dumb, I wouldn't reccomand using this model for anything real 
