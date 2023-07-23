@@ -1,4 +1,4 @@
-# Search All: Multi Modal Retrieval 📜🎵📷
+# Search All: Cross Modal Retrieval 📜🎵📷
 You can search a collection of images using `text`, `images` or `audio`.
 
 YouTube Video: https://www.youtube.com/watch?v=gGeUbwiljSE
