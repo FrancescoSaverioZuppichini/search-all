@@ -2,12 +2,14 @@
 
 Hi There 👋 Hope everything is great! In this tutorial we will see how to create a search engine to retrieve AI generated images using **text**, **audio** or **images**.
 
-I made a code walkthrough on [youtube](https://www.youtube.com/watch?v=gGeUbwiljSE), feel free to watch it 
+I made a code walkthrough on [youtube](https://www.youtube.com/watch?v=gGeUbwiljSE), feel free to watch it
 
 We will use [gradio](ttps://gradio.app/) to create the app, the new powerful multi modal model created by Meta: [ImageBind](https://imagebind.metademolab.com/) and [deeplake](https://www.deeplake.ai/) to store the embeddings.
+
 <!---
-A public demo is available here and code is on GitHub, feel free to test it out :) 
+A public demo is available here and code is on GitHub, feel free to test it out :)
 --->
+
 Let's get started
 
 ## Plan of Attack
@@ -50,13 +52,13 @@ In a nutshell, ImageBind is a transformer-based model trained on multiple pairs 
 
 ![alt](images/imagebind.png)
 
-The model supports images, text, audio, depth, thermal, and IMU data. We will limit ourselves to the first three. The task of learning similar embeddings for similar concepts in different modalities, e.g. "dog" and an image of a dog, is called *alignment*. The ImageBind Authors used a [Vision Transformer (ViT) ](https://arxiv.org/abs/2010.11929), a common architecture these days. Due to the number of different modalities, the preprocessing step is different. For example, for videos we need to take into account the time dimension, the audio needs to be converted to spectrogram, but the main weights are the same.
+The model supports images, text, audio, depth, thermal, and IMU data. We will limit ourselves to the first three. The task of learning similar embeddings for similar concepts in different modalities, e.g. "dog" and an image of a dog, is called _alignment_. The ImageBind Authors used a [Vision Transformer (ViT) ](https://arxiv.org/abs/2010.11929), a common architecture these days. Due to the number of different modalities, the preprocessing step is different. For example, for videos we need to take into account the time dimension, the audio needs to be converted to spectrogram, but the main weights are the same.
 
 ![alt](images/imagebind_overview.png)
 
-To learn to *align* pairs of modalities, (text, image), (audio, text), the Authors used *contrastive learning* and specifically the [*InfoNCE* loss](https://arxiv.org/abs/1807.03748). Using *InfoNCE*, the model is trained to identify a positive example from a batch of negative ones by maximizing the similarity between positive pairs and minimizing the similarity between negative ones.
+To learn to _align_ pairs of modalities, (text, image), (audio, text), the Authors used _contrastive learning_ and specifically the [_InfoNCE_ loss](https://arxiv.org/abs/1807.03748). Using _InfoNCE_, the model is trained to identify a positive example from a batch of negative ones by maximizing the similarity between positive pairs and minimizing the similarity between negative ones.
 
-The most interesting thing is that even if the model was trained on pairs (text, image) and (audio, text) the model learns also (image, audio). This is what the Authors called *"Emergent alignment of unseen pairs of modalities"*/
+The most interesting thing is that even if the model was trained on pairs (text, image) and (audio, text) the model learns also (image, audio). This is what the Authors called _"Emergent alignment of unseen pairs of modalities"_/
 
 Moreover, we can do **Embedding space arithmetic**, where we add (or subtract) multiple modalities embeddings to capture different semantic information. We'll play with it later on
 
@@ -64,7 +66,7 @@ Moreover, we can do **Embedding space arithmetic**, where we add (or subtract) m
 
 For the most curious reader, you can learn more by reading the [paper](https://arxiv.org/abs/2305.05665)
 
-Okay, let's get the embeddings. We need to load the model and store the embeddings for all the images so we can later on read them and dump them in the vector db. 
+Okay, let's get the embeddings. We need to load the model and store the embeddings for all the images so we can later on read them and dump them in the vector db.
 
 Getting the embeddings is quite easy with the [ImageBind code](https://github.com/facebookresearch/ImageBind) code.
 
@@ -196,7 +198,7 @@ list(
 )
 ```
 
-Here we are just iterating all the embedings file and adding all the stuff within each one of them. We can have a look at the data from [activeloop dashboard](https:/app.activeloop.ai/zuppif/lexica-6k) - spoiler alert, it is quite cool 
+Here we are just iterating all the embedings file and adding all the stuff within each one of them. We can have a look at the data from [activeloop dashboard](https:/app.activeloop.ai/zuppif/lexica-6k) - spoiler alert, it is quite cool
 
 ![alt](images/activeloop_dashboard.png)
 
@@ -219,6 +221,7 @@ We can access the metadata by
 query_res.metadata.data(aslist=True)["value"]
 # [{'path': '5e3a7c9b-e890-4975-9342-4b6898fed2c6.jpeg'}, {'path': '7a961855-25af-4359-b869-5ae1cc8a4b95.jpeg'}]
 ```
+
 If you remember, these are the metadata we stored previously, so the image filename. We wrapped all the vector store related code into a `VectorStore` class inside [vector_store.py](vector_store.py).
 
 ```python
@@ -244,7 +247,7 @@ def get_embeddings(
     images: Optional[List[ImageLike]],
     audio: Optional[List[str]],
     dtype: torch.dtype = torch.float16
-) -> Dict[str, torch.Tensor]:  
+) -> Dict[str, torch.Tensor]:
     inputs = {}
     if texts is not None:
         # they need to be ints
@@ -258,7 +261,6 @@ def get_embeddings(
 ```
 
 Always remember the `torch.no_grad` decorator :) Next, we can easility do
-
 
 ```python
 vs = VectorStore(...)
@@ -318,6 +320,7 @@ with gr.Blocks() as demo:
     gallery = gr.Gallery().style(columns=[3], object_fit="contain", height="auto")
 
 ```
+
 This results in the following UI
 
 ![alt](images/gradio_ui.png)
@@ -368,13 +371,13 @@ def search_button_handler(
     return [f"{BUCKET_LINK}{image_path}" for image_path in images_paths]
 ```
 
-So for each input we check that they exists, if they do we wrap them into a `list`. This is needed for our interal implementation. `vs.retrieve` is a function of `VectorStore`, just an utily class that wrap all the code in the same place. Inside that function we first compute the embeddings using the `get_embeddings` function showned before and then we run a query against the vector db. 
+So for each input we check that they exists, if they do we wrap them into a `list`. This is needed for our interal implementation. `vs.retrieve` is a function of `VectorStore`, just an utily class that wrap all the code in the same place. Inside that function we first compute the embeddings using the `get_embeddings` function showned before and then we run a query against the vector db.
 
 We have stored all the images into s3, so we return a list of links to the images there, this is the input to `gr.Gallery`
 
-Where, that's it! Let's see in action. 
+Where, that's it! Let's see in action.
 
-Normal single modality works as expected. 
+Normal single modality works as expected.
 
 If we receive more than one input, we sum them up. Basically,
 
@@ -388,18 +391,16 @@ For example, we can pass an image of a car and an audio of a f1 race.
 
 or the text + image, we can also do text + image + audio, feel free to test it out!
 
-![alt](images/text_image.png) 
+![alt](images/text_image.png)
 
-Some of the results were not too great, "cartoon" + cat image
+Some of the results were not too great, "cartoon style" + cat image. In this case the text prompt basically overrided the image. In the dataset there are cats in cartoon style but they are not picked.
 
 ![alt](images/cat_text_image.png)
 
-
-
-**In my experiments I've noticed that the text is stronger compared to image and audio when combinated with the other modalities** 
+**In my experiments I've noticed that the text is stronger compared to image and audio when combinated with the other modalities**
 
 We encourage the reader to try to demo and share the results :)
 
-Well that was it! 
+Well that was it!
 
 Thanks a lot for reading, I hope you learnt something new. Let us know how well the demo works for you
