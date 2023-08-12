@@ -2,14 +2,12 @@
 
 Hi There 👋 Hope everything is great! In this tutorial we will see how to create a search engine to retrieve AI generated images using **text**, **audio** or **images**.
 
-TODO INSERT VIDEO
+I made a code walkthrough on [youtube](https://www.youtube.com/watch?v=gGeUbwiljSE), feel free to watch it 
 
 We will use [gradio](ttps://gradio.app/) to create the app, the new powerful multi modal model created by Meta: [ImageBind](https://imagebind.metademolab.com/) and [deeplake](https://www.deeplake.ai/) to store the embeddings.
-
+<!---
 A public demo is available here and code is on GitHub, feel free to test it out :) 
-
-[TODO insert link to demo]()
-
+--->
 Let's get started
 
 ## Plan of Attack
