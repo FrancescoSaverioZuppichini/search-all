@@ -1,7 +1,6 @@
 data/
 embeddings/
 .checkpoints/
-bpe/
 scripts/download-unplash/
 # Byte-compiled / optimized / DLL files
 __pycache__/
